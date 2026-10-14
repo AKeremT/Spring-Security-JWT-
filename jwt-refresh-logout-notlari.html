@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spring Security JWT - Refresh & Logout Çalışma Notları</title>
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: #1e293b;
+            --border-color: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #38bdf8;
+            --accent-emerald: #34d399;
+            --accent-amber: #fbbf24;
+            --accent-rose: #fb7185;
+            --code-bg: #090d16;
+            --comment-color: #6ee7b7;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        header h1 {
+            font-size: 2.3rem;
+            color: var(--accent-blue);
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.5px;
+        }
+
+        header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .badge-bar {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: center;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            background-color: rgba(56, 189, 248, 0.1);
+            color: var(--accent-blue);
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+        }
+
+        .badge.green {
+            background-color: rgba(52, 211, 153, 0.1);
+            color: var(--accent-emerald);
+            border-color: rgba(52, 211, 153, 0.2);
+        }
+
+        .badge.amber {
+            background-color: rgba(251, 191, 36, 0.1);
+            color: var(--accent-amber);
+            border-color: rgba(251, 191, 36, 0.2);
+        }
+
+        h2 {
+            font-size: 1.7rem;
+            margin: 2.5rem 0 1.25rem 0;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            border-left: 4px solid var(--accent-blue);
+            padding-left: 0.75rem;
+        }
+
+        h3 {
+            font-size: 1.25rem;
+            margin: 1.5rem 0 0.75rem 0;
+            color: var(--accent-blue);
+        }
+
+        p, li {
+            color: var(--text-secondary);
+            margin-bottom: 0.85rem;
+            font-size: 1rem;
+        }
+
+        ul, ol {
+            padding-left: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        li strong {
+            color: var(--text-primary);
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.75rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .diagram-box {
+            background-color: #0c1322;
+            border: 1px solid #1e3a5f;
+            border-radius: 8px;
+            padding: 1.5rem;
+            font-family: "JetBrains Mono", Consolas, "Courier New", monospace;
+            font-size: 0.9rem;
+            color: #7dd3fc;
+            overflow-x: auto;
+            white-space: pre;
+            line-height: 1.5;
+            margin-bottom: 1.5rem;
+        }
+
+        .code-container {
+            margin: 1.5rem 0;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            background-color: var(--code-bg);
+        }
+
+        .code-header {
+            background-color: #141d2e;
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .code-header span.file-name {
+            color: var(--accent-amber);
+            font-family: monospace;
+            font-weight: bold;
+        }
+
+        pre {
+            padding: 1.25rem;
+            overflow-x: auto;
+            font-family: "JetBrains Mono", Consolas, "Courier New", monospace;
+            font-size: 0.88rem;
+            line-height: 1.6;
+            color: #e2e8f0;
+        }
+
+        /* Syntax highlighting simulation */
+        .kw { color: #f472b6; font-weight: bold; } /* keyword */
+        .type { color: #38bdf8; }                 /* class/type */
+        .str { color: #fde047; }                  /* string */
+        .comment { color: #4ade80; font-style: italic; } /* comments */
+        .anno { color: #c084fc; }                 /* annotations */
+
+        .alert-box {
+            background: rgba(251, 113, 133, 0.1);
+            border-left: 4px solid var(--accent-rose);
+            padding: 1rem 1.25rem;
+            border-radius: 0 8px 8px 0;
+            margin: 1.5rem 0;
+        }
+
+        .alert-box h4 {
+            color: var(--accent-rose);
+            margin-bottom: 0.4rem;
+            font-size: 1rem;
+        }
+
+        .alert-box p {
+            color: #fecdd3;
+            margin-bottom: 0;
+            font-size: 0.95rem;
+        }
+
+        .info-box {
+            background: rgba(56, 189, 248, 0.08);
+            border-left: 4px solid var(--accent-blue);
+            padding: 1rem 1.25rem;
+            border-radius: 0 8px 8px 0;
+            margin: 1.5rem 0;
+        }
+
+        .info-box h4 {
+            color: var(--accent-blue);
+            margin-bottom: 0.4rem;
+            font-size: 1rem;
+        }
+
+        .info-box p {
+            color: #bae6fd;
+            margin-bottom: 0;
+            font-size: 0.95rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            font-size: 0.95rem;
+        }
+
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: #141d2e;
+            color: var(--text-primary);
+        }
+
+        td {
+            color: var(--text-secondary);
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 4rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <header>
+        <h1>Spring Security JWT Notları</h1>
+        <p>Refresh Token Rotation & Logout / Token Blacklist Mekanizması</p>
+        <div class="badge-bar">
+            <span class="badge">Spring Boot 3+</span>
+            <span class="badge green">JWT & Stateless Auth</span>
+            <span class="badge amber">Token Rotation</span>
+            <span class="badge">HttpOnly Cookies</span>
+        </div>
+    </header>
+
+    <!-- GİRİŞ & MANTIKSAL ÖZET -->
+    <div class="card">
+        <h3>📌 Genel Mimari Özeti</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Token Türü</th>
+                    <th>Ömür</th>
+                    <th>Nerede Saklanır?</th>
+                    <th>Nasıl Geçersiz Kılınır?</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Access Token</strong></td>
+                    <td>Kısa (Örn: 15 dk)</td>
+                    <td>Frontend State (Bellek)</td>
+                    <td>Sunucu <code>TokenBlackList</code> tablosuna (Belleğe) atılır.</td>
+                </tr>
+                <tr>
+                    <td><strong>Refresh Token</strong></td>
+                    <td>Uzun (Örn: 7 gün)</td>
+                    <td>Tarayıcı <code>HttpOnly Cookie</code></td>
+                    <td>Veritabanında <code>revoked = true</code> yapılır.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 1. BÖLÜM: REFRESH TOKEN -->
+    <h2>1. Refresh Token İş Akışı (Token Rotation)</h2>
+    <div class="card">
+        <p><strong>Amaç:</strong> Access token'ın süresi (15 dk) bittiğinde kullanıcıya tekrar şifre sordurmadan, elindeki uzun ömürlü refresh token ile yeni bir access token sağlamak.</p>
+
+        <div class="diagram-box">
+İstemci (Tarayıcı / Mobil)
+   │  POST /api/auth/refresh (Cookie veya JSON Body ile)
+   ▼
+[1] Controller: Token Nereden Geldi? (Cookie mi, Body mi?)
+   │
+   ▼
+[2] Servis: Veritabanında Bu Refresh Token Var mı?
+   ├── Token daha önce iptal edilmiş mi? ➔ (Evet ise: ALARM! Replay Attack, tüm oturumları kapat!)
+   ├── Token'ın süresi dolmuş mu? ➔ (Evet ise: DB'den sil ve reddet)
+   └── Kullanıcı hesabı kilitli mi?
+   │
+   ▼
+[3] Servis: Token Rotation (Yenileme)
+   ├── Kullanıcıya YENİ bir Access Token üretilir.
+   └── Güvenlik gereği YENİ bir Refresh Token üretilir (Eskisi geride bırakılır).
+   │
+   ▼
+[4] Controller: İstemciye İletim
+   ├── Yeni Refresh Token ➔ Set-Cookie başlığıyla (HttpOnly) tarayıcıya yazılır.
+   └── Yeni Access Token  ➔ Response Body içinde JSON olarak teslim edilir.</div>
+
+        <h3>A) Controller Kodu ve Satır Satır Açıklaması</h3>
+        <div class="code-container">
+            <div class="code-header">
+                <span class="file-name">AuthController.java -> refresh()</span>
+                <span>Spring MVC</span>
+            </div>
+            <pre><code><span class="anno">@PostMapping</span>(<span class="str">"/refresh"</span>)
+<span class="kw">public</span> <span class="type">ResponseEntity</span>&lt;<span class="type">AuthResponse</span>&gt; refresh(
+        <span class="comment">// 1. Tarayıcıdan geliyorsa HttpOnly çerezdeki 'refreshToken' değerini yakala</span>
+        <span class="anno">@CookieValue</span>(name = <span class="str">"refreshToken"</span>, required = <span class="kw">false</span>) <span class="type">String</span> cookieRefreshToken,
+        <span class="comment">// 2. Postman veya mobilden geliyorsa JSON Body'deki token'ı yakala</span>
+        <span class="anno">@RequestBody</span>(required = <span class="kw">false</span>) <span class="type">RefreshTokenRequest</span> refreshTokenRequest) {
+
+    <span class="comment">// Öncelik çerezindir. Çerezde varsa onu al, yoksa Request Body'dekini al</span>
+    <span class="type">String</span> token = (cookieRefreshToken != <span class="kw">null</span> &amp;&amp; !cookieRefreshToken.isBlank())
+            ? cookieRefreshToken
+            : (refreshTokenRequest != <span class="kw">null</span> ? refreshTokenRequest.token() : <span class="kw">null</span>);
+
+    <span class="comment">// İki taraftan da hiçbir token gelmemişse hata fırlat</span>
+    <span class="kw">if</span> (token == <span class="kw">null</span> || token.isBlank()) {
+        <span class="kw">throw new</span> <span class="type">TokenNotFoundException</span>(<span class="str">"Refresh token is missing"</span>);
+    }
+
+    <span class="comment">// Servis katmanına git: Token'ı doğrula, eskiyi yak, yenilerini üret</span>
+    <span class="type">AuthResponse</span> authResponse = authenticationService.refreshToken(<span class="kw">new</span> <span class="type">RefreshTokenRequest</span>(token));
+
+    <span class="comment">// Üretilen yeni Refresh Token'ı tarayıcı için güvenli HttpOnly Cookie'ye paketle</span>
+    <span class="type">ResponseCookie</span> cookie = createRefreshTokenCookie(authResponse.refreshToken(), securityProperties.getRefreshTokenExpiration());
+
+    <span class="comment">// Set-Cookie başlığı ile yeni çerezi tarayıcıya yazdır, gövdede token'ları dön</span>
+    <span class="kw">return</span> <span class="type">ResponseEntity</span>.ok()
+            .header(<span class="type">HttpHeaders</span>.SET_COOKIE, cookie.toString())
+            .body(authResponse);
+}</code></pre>
+        </div>
+
+        <h3>B) Servis Kodu ve Satır Satır Açıklaması</h3>
+        <div class="code-container">
+            <div class="code-header">
+                <span class="file-name">AuthenticationService.java -> refreshToken()</span>
+                <span>Service Layer</span>
+            </div>
+            <pre><code><span class="anno">@Transactional</span>
+<span class="kw">public</span> <span class="type">AuthResponse</span> refreshToken(<span class="type">RefreshTokenRequest</span> request) {
+
+    <span class="comment">// 1. Ham token'ı SHA-256 ile hashle, DB'de ara ve doğrula</span>
+    <span class="type">RefreshToken</span> refreshToken = refreshTokenService.findByToken(request.token())
+            .map(refreshTokenService::verifyRefreshToken)
+            .orElseThrow(() -&gt; <span class="kw">new</span> <span class="type">TokenNotFoundException</span>(<span class="str">"Refresh token not found"</span>));
+
+    <span class="type">User</span> user = refreshToken.getUser();
+
+    <span class="comment">// 2. Kullanıcı hesabı banlanmış mı veya kilitli mi kontrol et</span>
+    <span class="kw">if</span> (!user.isEnabled() || !user.isAccountNonLocked()) {
+        <span class="kw">throw new</span> <span class="type">TokenNotValidException</span>(<span class="str">"User account is locked or disabled"</span>);
+    }
+
+    <span class="comment">// 3. Kullanıcıya YENİ bir Access Token üret</span>
+    <span class="type">String</span> accessToken = jwtService.generateToken(<span class="kw">new</span> <span class="type">CustomUserDetails</span>(user));
+
+    <span class="comment">// 4. TOKEN ROTATION: Kullanıcıya YENİ bir Refresh Token üret (Eski token artık geçersiz)</span>
+    <span class="type">RefreshToken</span> newRefreshToken = refreshTokenService.createRefreshToken(user);
+
+    <span class="comment">// 5. Yeni ikiliyi geri dön</span>
+    <span class="kw">return new</span> <span class="type">AuthResponse</span>(accessToken, newRefreshToken.getToken());
+}</code></pre>
+        </div>
+
+        <div class="info-box">
+            <h4>💡 Güvenlik Notu: verifyRefreshToken Metodu (Hırsızlık Alarmı)</h4>
+            <p>Eğer bir saldırgan eski (önceden kullanılmış) bir refresh token ile istek atarsa (<code>isRevoked() == true</code>), sistem bunu anlar ve <code>refreshTokenRepository.revokeAllByUser()</code> çağırarak <strong>o kullanıcının açık olan tüm cihazlardaki oturumlarını güvenlik sebebiyle kapatır</strong>.</p>
+        </div>
+    </div>
+
+    <!-- 2. BÖLÜM: LOGOUT -->
+    <h2>2. Logout (Çıkış) İş Akışı & Token Blacklist</h2>
+    <div class="card">
+        <p><strong>Amaç:</strong> Kullanıcı çıkış yaptığında hem veritabanındaki Refresh Token'ı geçersiz kılmak, hem de stateless olan Access Token'ın süresi bitene kadar kullanılmasını engellemek için kara listeye (Blacklist) almaktır.</p>
+
+        <div class="diagram-box">
+İstemci (Tarayıcı / Mobil)
+   │  POST /api/auth/logout
+   │  Headers : Authorization: Bearer &lt;accessToken&gt;
+   │  Cookies : refreshToken=&lt;refreshToken&gt;
+   ▼
+[1] Controller: Token'ları Ayrıştır
+   ├── "Authorization" header'ındaki "Bearer " kısmını at, accessToken'ı al.
+   └── Cookie veya Body'den refreshToken'ı al.
+   │
+   ▼
+[2] Servis: Çift Yönlü İptal İşlemi
+   ├── Refresh Token ➔ DB'de 'revoked = true' yapılır (Bir daha refresh yapılamaz).
+   └── Access Token  ➔ Çözümlenir, bitiş tarihi alınır ve TokenBlackList (RAM)'e eklenir.
+   │
+   ▼
+[3] Servis: Güvenlik Bağlamını Temizle
+   └── SecurityContextHolder.clearContext() çağrılır.
+   │
+   ▼
+[4] Controller: Tarayıcıdaki Çerezi İmha Et
+   └── cleanRefreshTokenCookie() ➔ maxAge(0) ile tarayıcıdaki çerez kalıcı olarak silinir.</div>
+
+        <h3>A) Controller Kodu ve Satır Satır Açıklaması</h3>
+        <div class="code-container">
+            <div class="code-header">
+                <span class="file-name">AuthController.java -> logout()</span>
+                <span>Spring MVC</span>
+            </div>
+            <pre><code><span class="anno">@PostMapping</span>(<span class="str">"/logout"</span>)
+<span class="kw">public</span> <span class="type">ResponseEntity</span>&lt;<span class="type">Map</span>&lt;<span class="type">String</span>, <span class="type">String</span>&gt;&gt; logout(
+        <span class="anno">@RequestHeader</span>(name = <span class="str">"Authorization"</span>, required = <span class="kw">false</span>) <span class="type">String</span> authHeader,
+        <span class="anno">@CookieValue</span>(name = <span class="str">"refreshToken"</span>, required = <span class="kw">false</span>) <span class="type">String</span> cookieRefreshToken,
+        <span class="anno">@RequestBody</span>(required = <span class="kw">false</span>) <span class="type">RefreshTokenRequest</span> refreshTokenRequest) {
+
+    <span class="comment">// 1. Header doluysa ve "Bearer " ile başlıyorsa başındaki 7 harfi at, saf token'ı al</span>
+    <span class="type">String</span> accessToken = <span class="kw">null</span>;
+    <span class="kw">if</span> (authHeader != <span class="kw">null</span> &amp;&amp; authHeader.startsWith(<span class="str">"Bearer "</span>)) {
+        accessToken = authHeader.substring(7);
+    }
+
+    <span class="comment">// 2. Refresh token'ı çerezden veya istek gövdesinden yakala</span>
+    <span class="type">String</span> refreshToken = (cookieRefreshToken != <span class="kw">null</span> &amp;&amp; !cookieRefreshToken.isBlank())
+            ? cookieRefreshToken
+            : (refreshTokenRequest != <span class="kw">null</span> ? refreshTokenRequest.token() : <span class="kw">null</span>);
+
+    <span class="comment">// 3. Servise git: Refresh token'ı DB'de öldür, Access token'ı kara listeye al</span>
+    authenticationService.logout(accessToken, refreshToken != <span class="kw">null</span> ? <span class="kw">new</span> <span class="type">RefreshTokenRequest</span>(refreshToken) : <span class="kw">null</span>);
+
+    <span class="comment">// 4. Tarayıcıya 'bu çerezin süresi 0 saniyedir' emrini verecek boş bir çerez hazırla</span>
+    <span class="type">ResponseCookie</span> cleanCookie = cleanRefreshTokenCookie();
+
+    <span class="comment">// 5. İstemciye Set-Cookie ile silme emrini gönder ve 200 OK mesajı dön</span>
+    <span class="kw">return</span> <span class="type">ResponseEntity</span>.ok()
+            .header(<span class="type">HttpHeaders</span>.SET_COOKIE, cleanCookie.toString())
+            .body(<span class="type">Map</span>.of(<span class="str">"message"</span>, <span class="str">"Successfully logged out!"</span>));
+}</code></pre>
+        </div>
+
+        <h3>B) Servis Kodu ve Satır Satır Açıklaması</h3>
+        <div class="code-container">
+            <div class="code-header">
+                <span class="file-name">AuthenticationService.java -> logout()</span>
+                <span>Service Layer</span>
+            </div>
+            <pre><code><span class="kw">public void</span> logout(<span class="type">String</span> accessToken, <span class="type">RefreshTokenRequest</span> refreshTokenRequest) {
+
+    <span class="comment">// 1. Refresh Token varsa: DB'de bul ve 'revoked = true' yap</span>
+    <span class="kw">if</span> (refreshTokenRequest != <span class="kw">null</span> &amp;&amp; refreshTokenRequest.token() != <span class="kw">null</span> &amp;&amp; !refreshTokenRequest.token().isBlank()) {
+        refreshTokenService.logout(refreshTokenRequest.token());
+    }
+
+    <span class="comment">// 2. Access Token varsa: Süresi dolana kadar birisi kullanmasın diye kara listeye al</span>
+    <span class="kw">if</span> (accessToken != <span class="kw">null</span> &amp;&amp; !accessToken.isBlank()) {
+        <span class="kw">try</span> {
+            <span class="comment">// Token'ın geçerlilik bitiş tarihini (expiration) oku</span>
+            <span class="type">Claims</span> claims = jwtService.extractAllClaims(accessToken);
+            <span class="type">Instant</span> expiration = claims.getExpiration().toInstant();
+
+            <span class="comment">// TokenBlackListService'deki ConcurrentHashMap'e ekle</span>
+            tokenBlackListService.blacklistToken(accessToken, expiration);
+        } <span class="kw">catch</span> (<span class="type">JwtException</span> | <span class="type">IllegalArgumentException</span> e) {
+            <span class="comment">// Token zaten geçersizse sessizce devam et</span>
+        }
+    }
+
+    <span class="comment">// 3. Spring Security oturumunu (Thread context) temizle</span>
+    <span class="type">SecurityContextHolder</span>.clearContext();
+}</code></pre>
+        </div>
+    </div>
+
+    <!-- 3. BÖLÜM: YARDIMCI METOTLAR VE ÇEREZ GÜVENLİĞİ -->
+    <h2>3. Çerez (Cookie) Güvenliği & Yardımcı Metotlar</h2>
+    <div class="card">
+        <div class="code-container">
+            <div class="code-header">
+                <span class="file-name">AuthController.java -> Cookie Metotları</span>
+            </div>
+            <pre><code><span class="comment">// Token oluştururken:</span>
+<span class="kw">private</span> <span class="type">ResponseCookie</span> createRefreshTokenCookie(<span class="type">String</span> token, <span class="type">Duration</span> maxAge) {
+    <span class="kw">return</span> <span class="type">ResponseCookie</span>.from(<span class="str">"refreshToken"</span>, token)
+            .httpOnly(<span class="kw">true</span>)      <span class="comment">// XSS Koruması: JS (document.cookie) okuyamaz!</span>
+            .secure(<span class="kw">false</span>)       <span class="comment">// Localhost için false (Canlıda HTTPS ile true olmalı)</span>
+            .sameSite(<span class="str">"Strict"</span>)  <span class="comment">// CSRF Koruması: Sadece bizim siteden gelen isteklerde gönderilir</span>
+            .path(<span class="str">"/api/auth"</span>)   <span class="comment">// Yalnızca auth uç noktalarına giden isteklerde taşınır</span>
+            .maxAge(maxAge)      <span class="comment">// 7 gün boyunca geçerli</span>
+            .build();
+}
+
+<span class="comment">// Token silerken (Logout anında):</span>
+<span class="kw">private</span> <span class="type">ResponseCookie</span> cleanRefreshTokenCookie() {
+    <span class="kw">return</span> <span class="type">ResponseCookie</span>.from(<span class="str">"refreshToken"</span>, <span class="str">""</span>) <span class="comment">// Değeri boş string</span>
+            .httpOnly(<span class="kw">true</span>)
+            .secure(<span class="kw">false</span>)
+            .sameSite(<span class="str">"Strict"</span>)
+            .path(<span class="str">"/api/auth"</span>)
+            .maxAge(0)           <span class="comment">// Ömür 0 saniye -> Tarayıcı anında hafızadan siler</span>
+            .build();
+}</code></pre>
+        </div>
+
+        <div class="alert-box">
+            <h4>⚠️ Küçük Kod Düzeltmesi Hatırlatması</h4>
+            <p><code>AuthController.java</code> 58. satırında: <code>if (token != null || token.isBlank())</code> yazılmıştır. Burada <code>!= null</code> yerine <code>== null</code> (yani <code>if (token == null || token.isBlank())</code>) olmalıdır. Aksi halde token dolu gelse bile hata fırlatacaktır.</p>
+        </div>
+    </div>
+
+    <footer>
+        <p>Spring Security JWT Mimari & Çalışma Notu &bull; 2026</p>
+    </footer>
+
+</div>
+
+</body>
+</html>
